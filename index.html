@@ -1,57 +1,57 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>POC IndexedDB — App de Notas</title>
+  <title>IndexedDB POC — Notes App</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <header>
-    <h1>POC IndexedDB</h1>
-    <p class="subtitle">App de notas demonstrando os fundamentos da API</p>
+    <h1>IndexedDB POC</h1>
+    <p class="subtitle">Notes app demonstrating the fundamentals of the API</p>
   </header>
 
   <main>
     <section class="panel">
-      <h2>Nova nota</h2>
+      <h2>New note</h2>
       <form id="note-form">
         <input type="hidden" id="note-id" />
         <label>
-          Título
+          Title
           <input type="text" id="note-title" required maxlength="100" />
         </label>
         <label>
-          Conteúdo
+          Content
           <textarea id="note-content" rows="4" required></textarea>
         </label>
         <label>
           Tag
-          <input type="text" id="note-tag" placeholder="ex: trabalho, pessoal" />
+          <input type="text" id="note-tag" placeholder="e.g. work, personal" />
         </label>
         <div class="actions">
-          <button type="submit" id="save-btn">Salvar</button>
-          <button type="button" id="cancel-btn" hidden>Cancelar edição</button>
+          <button type="submit" id="save-btn">Save</button>
+          <button type="button" id="cancel-btn" hidden>Cancel edit</button>
         </div>
       </form>
     </section>
 
     <section class="panel">
-      <h2>Notas salvas</h2>
+      <h2>Saved notes</h2>
       <div class="filter">
         <label>
-          Filtrar por tag
-          <input type="text" id="filter-tag" placeholder="deixe vazio para listar todas" />
+          Filter by tag
+          <input type="text" id="filter-tag" placeholder="leave empty to list all" />
         </label>
-        <button type="button" id="clear-all-btn" class="danger">Apagar tudo</button>
+        <button type="button" id="clear-all-btn" class="danger">Delete all</button>
       </div>
       <ul id="note-list" class="note-list"></ul>
-      <p id="empty-state" class="empty">Nenhuma nota cadastrada.</p>
+      <p id="empty-state" class="empty">No notes saved.</p>
     </section>
 
     <section class="panel log-panel">
-      <h2>Log de operações</h2>
-      <p class="hint">Acompanhe transações, requests e eventos do IndexedDB em tempo real.</p>
+      <h2>Operations log</h2>
+      <p class="hint">Watch IndexedDB transactions, requests, and events in real time.</p>
       <pre id="log"></pre>
     </section>
   </main>

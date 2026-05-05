@@ -1,70 +1,70 @@
-# POC IndexedDB
+# IndexedDB POC
 
-Prova de conceito didática sobre **IndexedDB**: API nativa de banco de dados transacional, embutida no navegador, projetada para armazenar grandes volumes de dados estruturados do lado cliente.
+A didactic proof of concept for **IndexedDB**: a native, browser-embedded transactional database API designed to store large volumes of structured data on the client side.
 
-A POC implementa um app de notas (CRUD + busca por tag + ordenação) usando JavaScript puro — sem frameworks, sem build tools — com a biblioteca [`idb`](https://github.com/jakearchibald/idb) (~1 KB) carregada via ESM CDN para deixar a API Promise-based.
+This POC implements a notes app (CRUD + search by tag + sorting) using vanilla JavaScript — no frameworks, no build tools — with the [`idb`](https://github.com/jakearchibald/idb) library (~1 KB) loaded via ESM CDN to make the API Promise-based.
 
-## Como rodar
+## How to run
 
-Não há dependências. Abra `index.html` em qualquer navegador moderno. Para evitar restrições de `file://` em alguns navegadores, sirva por HTTP local:
+No dependencies. Open `index.html` in any modern browser. To avoid `file://` restrictions in some browsers, serve over local HTTP:
 
 ```bash
 # Python 3
 python3 -m http.server 8000
-# ou Node
+# or Node
 npx serve .
 ```
 
-Depois acesse `http://localhost:8000`. Inspecione o banco em **DevTools → Application → IndexedDB → poc-indexeddb**.
+Then visit `http://localhost:8000`. Inspect the database in **DevTools → Application → IndexedDB → poc-indexeddb**.
 
-## Estrutura
+## Structure
 
-| Arquivo | Papel |
+| File | Role |
 |---|---|
-| [index.html](index.html) | UI: formulário, lista de notas e log de operações |
-| [styles.css](styles.css) | Estilos |
-| [db.js](db.js) | Camada de acesso usando `idb` — onde mora a "didática" do IndexedDB |
-| [app.js](app.js) | Lógica do app (eventos, render) |
+| [index.html](index.html) | UI: form, notes list, and operations log |
+| [styles.css](styles.css) | Styles |
+| [db.js](db.js) | Data access layer using `idb` — where the IndexedDB "didactics" live |
+| [app.js](app.js) | App logic (events, render) |
 
 ---
 
-## 1. Por que o IndexedDB existe
+## 1. Why IndexedDB exists
 
-O IndexedDB foi padronizado pela W3C como **resposta a um problema concreto**: aplicações web precisavam de armazenamento local que fosse, ao mesmo tempo:
+IndexedDB was standardized by the W3C as a **response to a concrete problem**: web applications needed local storage that was, at the same time:
 
-1. **Volumoso** — `localStorage` tem limite prático de ~5 MB e armazena só strings.
-2. **Estruturado** — buscar dados em JSON serializado dentro de `localStorage` é O(n) e bloqueante.
-3. **Assíncrono** — operações síncronas travam a UI thread; um app offline rico não pode pagar esse custo.
-4. **Transacional** — operações de leitura/escrita precisam ser consistentes mesmo com a aba sendo fechada no meio.
-5. **Indexável** — buscar por campos arbitrários sem varrer toda a coleção.
+1. **High-capacity** — `localStorage` has a practical limit of ~5 MB and only stores strings.
+2. **Structured** — searching JSON serialized inside `localStorage` is O(n) and blocking.
+3. **Asynchronous** — synchronous operations freeze the UI thread; a rich offline app can't pay that cost.
+4. **Transactional** — read/write operations need to stay consistent even if the tab closes mid-operation.
+5. **Indexable** — search by arbitrary fields without scanning the whole collection.
 
-Antes do IndexedDB existiu o **Web SQL Database** (SQLite no browser), mas a W3C **descontinuou** o padrão em 2010 porque dependia de uma implementação específica (SQLite) — não havia uma especificação independente que múltiplos fornecedores pudessem implementar de forma equivalente. O IndexedDB foi a alternativa: uma API de **object store** (NoSQL key-value com índices), suficientemente abstrata para ser implementada por qualquer engine.
+Before IndexedDB there was **Web SQL Database** (SQLite in the browser), but the W3C **deprecated** the standard in 2010 because it depended on a specific implementation (SQLite) — there was no independent specification multiple vendors could implement equivalently. IndexedDB became the alternative: an **object store** API (NoSQL key-value with indexes), abstract enough to be implemented by any engine.
 
 ---
 
-## 2. Fundamentos da API
+## 2. API fundamentals
 
-### Conceitos centrais
+### Core concepts
 
-| Conceito | O que é |
+| Concept | What it is |
 |---|---|
-| **Database** | Container nomeado e versionado. Um origin pode ter vários. |
-| **Object store** | Equivalente a uma "tabela" ou "coleção". Armazena objetos estruturados (não só strings). |
-| **Key path** | Campo do objeto usado como chave primária (ex: `id`). Pode ser auto-incrementado. |
-| **Index** | Estrutura auxiliar que permite buscar por outro campo do objeto sem varrer tudo. |
-| **Transaction** | Toda operação roda dentro de uma transação (`readonly` ou `readwrite`). Atomicidade garantida pelo navegador. |
-| **Request** | Cada operação retorna um `IDBRequest` com `onsuccess` / `onerror`. É a base assíncrona da API. |
-| **Cursor** | Iterador para percorrer registros lazy, útil para datasets grandes. |
-| **Versioning** | Mudanças de schema (criar/alterar object stores ou índices) só podem acontecer em `onupgradeneeded`, disparado quando a versão do banco aumenta. |
+| **Database** | Named, versioned container. An origin can have several. |
+| **Object store** | Equivalent to a "table" or "collection". Stores structured objects (not just strings). |
+| **Key path** | Object field used as primary key (e.g. `id`). Can be auto-incremented. |
+| **Index** | Auxiliary structure that lets you search by another field of the object without scanning everything. |
+| **Transaction** | Every operation runs inside a transaction (`readonly` or `readwrite`). Atomicity guaranteed by the browser. |
+| **Request** | Each operation returns an `IDBRequest` with `onsuccess` / `onerror`. The async foundation of the API. |
+| **Cursor** | Iterator to walk records lazily — useful for large datasets. |
+| **Versioning** | Schema changes (creating/altering object stores or indexes) can only happen in `onupgradeneeded`, fired when the database version increases. |
 
-### O fluxo típico
+### The typical flow
 
 ```
 indexedDB.open(name, version)
         ↓
-   onupgradeneeded   ← cria/altera object stores e índices (só aqui!)
+   onupgradeneeded   ← create/alter object stores and indexes (only here!)
         ↓
-   onsuccess         ← banco pronto
+   onsuccess         ← database ready
         ↓
    db.transaction(store, mode)
         ↓
@@ -72,74 +72,74 @@ indexedDB.open(name, version)
         ↓
    request.onsuccess / onerror
         ↓
-   tx.oncomplete     ← transação commitada
+   tx.oncomplete     ← transaction committed
 ```
 
-Veja [db.js](db.js) para implementação comentada de cada etapa.
+See [db.js](db.js) for a commented implementation of each step.
 
-### Pontos não óbvios
+### Non-obvious points
 
-- **Transações expiram entre microtasks:** se você fizer `await` de algo que não seja um `IDBRequest` dentro de uma transação, ela é commitada e operações subsequentes falham. Por isso wrappers como `idb` ou `Dexie` existem.
-- **Versionamento é a única porta para alterar schema:** esqueceu um índice? Suba a versão e adicione em `onupgradeneeded`.
-- **Same-origin policy:** o banco é isolado por origem (protocolo + domínio + porta).
-- **Não é eviction-free:** o navegador pode descartar dados se o disco encher e o site não tiver pedido `navigator.storage.persist()`.
+- **Transactions expire between microtasks:** if you `await` something other than an `IDBRequest` inside a transaction, it gets committed and subsequent operations fail. This is why wrappers like `idb` or `Dexie` exist.
+- **Versioning is the only door for schema changes:** forgot an index? Bump the version and add it in `onupgradeneeded`.
+- **Same-origin policy:** the database is isolated by origin (protocol + domain + port).
+- **Not eviction-free:** the browser may discard data if disk fills up and the site hasn't requested `navigator.storage.persist()`.
 
 ---
 
-## 3. Comparação com ferramentas similares
+## 3. Comparison with similar tools
 
 | | **IndexedDB** | **localStorage** | **sessionStorage** | **Cookies** | **Cache API** | **WebSQL** *(deprecated)* |
 |---|---|---|---|---|---|---|
-| **Tipo** | NoSQL transacional com índices | Key-value | Key-value | Key-value (HTTP) | Cache de Request/Response | SQL relacional |
-| **Capacidade** | Centenas de MB a GB | ~5 MB | ~5 MB | ~4 KB por cookie | Centenas de MB | ~50 MB |
-| **Tipos de dados** | Qualquer estrutura serializável (objetos, Blob, ArrayBuffer, File) | Apenas strings | Apenas strings | Apenas strings | Request/Response | Apenas tipos SQL |
-| **API** | Assíncrona (eventos / Promise via wrapper) | **Síncrona** (bloqueia UI) | **Síncrona** | Mediada via `document.cookie` ou `Set-Cookie` | Promise-based | Assíncrona (callbacks) |
-| **Transações** | Sim (ACID parcial) | Não | Não | Não | Não | Sim |
-| **Índices / queries** | Sim | Não | Não | Não | Match por URL | SQL completo |
-| **Persistência** | Até o usuário limpar / eviction | Até o usuário limpar | Até a aba fechar | Configurável (expires) | Até o usuário limpar | Até o usuário limpar |
-| **Enviado ao servidor** | Não | Não | Não | **Sim, em cada request** | Não | Não |
-| **Padrão atual** | W3C, suportado em todos os navegadores | Web Storage API | Web Storage API | RFC 6265 | Service Workers spec | **Removido — não usar** |
+| **Type** | Transactional NoSQL with indexes | Key-value | Key-value | Key-value (HTTP) | Request/Response cache | Relational SQL |
+| **Capacity** | Hundreds of MB to GB | ~5 MB | ~5 MB | ~4 KB per cookie | Hundreds of MB | ~50 MB |
+| **Data types** | Any serializable structure (objects, Blob, ArrayBuffer, File) | Strings only | Strings only | Strings only | Request/Response | SQL types only |
+| **API** | Async (events / Promise via wrapper) | **Sync** (blocks UI) | **Sync** | Mediated via `document.cookie` or `Set-Cookie` | Promise-based | Async (callbacks) |
+| **Transactions** | Yes (partial ACID) | No | No | No | No | Yes |
+| **Indexes / queries** | Yes | No | No | No | URL match | Full SQL |
+| **Persistence** | Until user clears / eviction | Until user clears | Until tab closes | Configurable (expires) | Until user clears | Until user clears |
+| **Sent to server** | No | No | No | **Yes, on every request** | No | No |
+| **Current standard** | W3C, supported in all browsers | Web Storage API | Web Storage API | RFC 6265 | Service Workers spec | **Removed — do not use** |
 
-### Quando usar cada um
+### When to use each one
 
-- **`localStorage` / `sessionStorage`** — flags simples, preferências de UI, tokens de UI ephemeral. Pequeno e síncrono é uma vantagem aqui.
-- **Cookies** — quando o servidor precisa do dado em cada request (autenticação, sessão).
-- **Cache API** — cachear respostas HTTP (estratégias offline-first em Service Workers). Não é um banco — é cache de rede.
-- **IndexedDB** — dados estruturados, volume considerável, busca por campos, modo offline real (PWAs), dados binários (imagens, áudio).
-- **WebSQL** — **nunca**. A spec foi removida; ainda funciona em alguns navegadores por compatibilidade, mas será removido.
+- **`localStorage` / `sessionStorage`** — simple flags, UI preferences, ephemeral UI tokens. Small and synchronous is an advantage here.
+- **Cookies** — when the server needs the data on every request (auth, session).
+- **Cache API** — cache HTTP responses (offline-first strategies in Service Workers). Not a database — it's a network cache.
+- **IndexedDB** — structured data, considerable volume, search by fields, real offline mode (PWAs), binary data (images, audio).
+- **WebSQL** — **never**. The spec was removed; it still works in some browsers for compatibility but will be removed.
 
-### Wrappers para IndexedDB
+### IndexedDB wrappers
 
-A API nativa é verbosa e cheia de pegadinhas (`onsuccess`/`onerror`, transações que expiram entre microtasks, etc.). Em produção quase ninguém usa cru:
+The native API is verbose and full of gotchas (`onsuccess`/`onerror`, transactions expiring between microtasks, etc.). In production almost no one uses it raw:
 
-- **[idb](https://github.com/jakearchibald/idb)** (Jake Archibald) — wrapper Promise-based finíssimo, ~1 KB. Mantém a forma da API original. **Usado nesta POC.**
-- **[Dexie.js](https://dexie.org/)** — abstração de mais alto nível, com queries encadeadas, schemas declarativos e migrations. ~25 KB.
-- **[RxDB](https://rxdb.info/)**, **[PouchDB](https://pouchdb.com/)** — quando você precisa de replicação/sync com backend.
+- **[idb](https://github.com/jakearchibald/idb)** (Jake Archibald) — paper-thin Promise-based wrapper, ~1 KB. Keeps the shape of the original API. **Used in this POC.**
+- **[Dexie.js](https://dexie.org/)** — higher-level abstraction with chained queries, declarative schemas, and migrations. ~25 KB.
+- **[RxDB](https://rxdb.info/)**, **[PouchDB](https://pouchdb.com/)** — when you need replication/sync with a backend.
 
-O `idb` mantém o vocabulário da API nativa (`objectStore`, `transaction`, `index`, `cursor`), mas devolve Promises e mantém transações vivas entre `await`s. Veja [db.js](db.js) para ver como cada conceito mapeia.
-
----
-
-## 4. O que esta POC demonstra
-
-Marque na DevTools → Application → IndexedDB enquanto usa o app:
-
-- [x] **Abertura e versionamento** — `openDB()` com callback `upgrade(db, oldVersion, newVersion)`
-- [x] **Object store com `keyPath` auto-incrementado** — `createObjectStore('notes', { keyPath: 'id', autoIncrement: true })`
-- [x] **Índices** — `by_tag` (busca filtrada) e `by_createdAt` (ordenação)
-- [x] **Transações `readonly` e `readwrite`** — `db.transaction(store, mode)` + `tx.done`
-- [x] **CRUD completo** — `db.add`, `db.get`, `db.put`, `db.delete`, `db.clear`
-- [x] **Busca por índice** — `listByTag()` usa `db.getAllFromIndex(...)` em vez de varrer
-- [x] **Cursor** — `listSortedByDateDesc()` itera com `for await (const cursor of index.iterate(null, 'prev'))`
-- [x] **Tratamento de bloqueio** — callback `blocked()` em `openDB`
-
-O painel **Log de operações** na UI mostra cada evento em tempo real.
+`idb` keeps the native API vocabulary (`objectStore`, `transaction`, `index`, `cursor`), but returns Promises and keeps transactions alive across `await`s. See [db.js](db.js) for how each concept maps.
 
 ---
 
-## 5. Limitações conhecidas
+## 4. What this POC demonstrates
 
-- **Quota** — não há garantia de quanto o navegador permitirá. Use `navigator.storage.estimate()` para inspecionar e `navigator.storage.persist()` para pedir persistência.
-- **Modo privado** — em janelas privadas/anônimas, o banco existe mas é descartado ao fechar. Alguns navegadores limitam quota agressivamente.
-- **Migrations** — só rodam ao subir versão; não há "ALTER TABLE" arbitrário. Mudanças complexas exigem ler dados antigos, criar store nova, copiar e descartar a antiga.
-- **Sem queries complexas** — não há joins ou agregações nativas. Ou você modela bem com índices, ou processa em memória.
+Watch DevTools → Application → IndexedDB while using the app:
+
+- [x] **Open and versioning** — `openDB()` with `upgrade(db, oldVersion, newVersion)` callback
+- [x] **Object store with auto-incremented `keyPath`** — `createObjectStore('notes', { keyPath: 'id', autoIncrement: true })`
+- [x] **Indexes** — `by_tag` (filtered search) and `by_createdAt` (sorting)
+- [x] **`readonly` and `readwrite` transactions** — `db.transaction(store, mode)` + `tx.done`
+- [x] **Full CRUD** — `db.add`, `db.get`, `db.put`, `db.delete`, `db.clear`
+- [x] **Index-based search** — `listByTag()` uses `db.getAllFromIndex(...)` instead of scanning
+- [x] **Cursor** — `listSortedByDateDesc()` iterates with `for await (const cursor of index.iterate(null, 'prev'))`
+- [x] **Blocked handling** — `blocked()` callback in `openDB`
+
+The **Operations log** panel in the UI shows each event in real time.
+
+---
+
+## 5. Known limitations
+
+- **Quota** — there's no guarantee of how much the browser will allow. Use `navigator.storage.estimate()` to inspect and `navigator.storage.persist()` to request persistence.
+- **Private mode** — in private/incognito windows, the database exists but is discarded on close. Some browsers throttle quota aggressively.
+- **Migrations** — only run when the version bumps; there's no arbitrary "ALTER TABLE". Complex changes require reading old data, creating a new store, copying, and dropping the old one.
+- **No complex queries** — no native joins or aggregations. Either you model well with indexes, or you process in memory.

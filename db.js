@@ -22,7 +22,7 @@ function getDB() {
     },
   });
 
-  _dbPromise.then(() => logger('Banco aberto com sucesso.', 'success'));
+  _dbPromise.then(() => logger('Database opened successfully.', 'success'));
   return _dbPromise;
 }
 
@@ -35,7 +35,7 @@ export const NotesDB = {
   async update(id, note) {
     const db = await getDB();
     const existing = await db.get(STORE, id);
-    if (!existing) throw new Error(`Nota ${id} não encontrada`);
+    if (!existing) throw new Error(`Note ${id} not found`);
     return db.put(STORE, {
       ...existing,
       ...note,

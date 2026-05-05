@@ -26,7 +26,7 @@ function resetForm() {
   form.reset();
   idField.value = '';
   cancelBtn.hidden = true;
-  saveBtn.textContent = 'Salvar';
+  saveBtn.textContent = 'Save';
 }
 
 async function refresh() {
@@ -58,21 +58,21 @@ async function refresh() {
     p.textContent = note.content;
 
     const time = document.createElement('time');
-    time.textContent = `criada em ${new Date(note.createdAt).toLocaleString()}`;
+    time.textContent = `created at ${new Date(note.createdAt).toLocaleString()}`;
     if (note.updatedAt) {
-      time.textContent += ` • editada em ${new Date(note.updatedAt).toLocaleString()}`;
+      time.textContent += ` • edited at ${new Date(note.updatedAt).toLocaleString()}`;
     }
 
     const actions = document.createElement('div');
     actions.className = 'item-actions';
 
     const editBtn = document.createElement('button');
-    editBtn.textContent = 'Editar';
+    editBtn.textContent = 'Edit';
     editBtn.className = 'ghost';
     editBtn.addEventListener('click', () => startEdit(note));
 
     const delBtn = document.createElement('button');
-    delBtn.textContent = 'Excluir';
+    delBtn.textContent = 'Delete';
     delBtn.className = 'danger';
     delBtn.addEventListener('click', () => removeNote(note.id));
 
@@ -81,7 +81,7 @@ async function refresh() {
     list.appendChild(li);
   }
 
-  log(`Listagem atualizada (${notes.length} nota${notes.length === 1 ? '' : 's'}).`);
+  log(`List refreshed (${notes.length} note${notes.length === 1 ? '' : 's'}).`);
 }
 
 function startEdit(note) {
@@ -90,14 +90,14 @@ function startEdit(note) {
   contentField.value = note.content;
   tagField.value = note.tag || '';
   cancelBtn.hidden = false;
-  saveBtn.textContent = 'Atualizar';
+  saveBtn.textContent = 'Update';
   titleField.focus();
 }
 
 async function removeNote(id) {
-  if (!confirm('Excluir esta nota?')) return;
+  if (!confirm('Delete this note?')) return;
   await NotesDB.remove(id);
-  log(`Nota ${id} removida.`, 'success');
+  log(`Note ${id} removed.`, 'success');
   await refresh();
 }
 
@@ -113,15 +113,15 @@ form.addEventListener('submit', async (event) => {
     if (idField.value) {
       const id = Number(idField.value);
       await NotesDB.update(id, note);
-      log(`Nota ${id} atualizada.`, 'success');
+      log(`Note ${id} updated.`, 'success');
     } else {
       const id = await NotesDB.add(note);
-      log(`Nota ${id} criada.`, 'success');
+      log(`Note ${id} created.`, 'success');
     }
     resetForm();
     await refresh();
   } catch (err) {
-    log(`Erro ao salvar: ${err.message}`, 'error');
+    log(`Error saving: ${err.message}`, 'error');
   }
 });
 
@@ -132,9 +132,9 @@ filterTag.addEventListener('input', () => {
 });
 
 clearAllBtn.addEventListener('click', async () => {
-  if (!confirm('Apagar TODAS as notas?')) return;
+  if (!confirm('Delete ALL notes?')) return;
   await NotesDB.clear();
-  log('Object store limpo.', 'success');
+  log('Object store cleared.', 'success');
   await refresh();
 });
 
@@ -143,6 +143,6 @@ clearAllBtn.addEventListener('click', async () => {
     await NotesDB.init(log);
     await refresh();
   } catch (err) {
-    log(`Falha na inicialização: ${err.message}`, 'error');
+    log(`Initialization failed: ${err.message}`, 'error');
   }
 })();
